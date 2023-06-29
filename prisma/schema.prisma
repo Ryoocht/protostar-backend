@@ -1,0 +1,314 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  appId          Int      @unique @map("app_id")
+  email          String   @unique
+  firstName      String   @map("first_name")
+  lastName       String   @map("last_name")
+  phoneNumber    String?  @map("phone_number")
+  country        String?
+  firstLanguage  String?  @map("first_language")
+  secondLanguage String?  @map("second_language")
+  avatar         String?
+  password       String
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @map("updated_at")
+
+  tutor     Tutor?
+  student   Student?
+  blogs     Blog[]
+  comments  Comment[]
+  blogLikes BlogLike[]
+
+  @@map("user")
+}
+
+model EmailVerification {
+  email      String   @id @db.VarChar(36)
+  code       String   @db.VarChar(6)
+  expiresAt  DateTime @map("expires_at")
+  isVerified Boolean  @default(false) @map("is_verified")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  @@unique(email)
+  @@map("email_verification")
+}
+
+model Tutor {
+  id     String @id @default(uuid())
+  userId Int    @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [appId], onDelete: Cascade)
+
+  profile              Profile?
+  weeklyAvailabilities WeeklyAvailability[]
+  bankDetails          BankDetails?
+  lessons              Lesson[]
+  Review               Review[]
+
+  @@map("tutor")
+}
+
+model Student {
+  id            String         @id @default(uuid())
+  userId        Int            @unique @map("user_id")
+  user          User           @relation(fields: [userId], references: [appId], onDelete: Cascade)
+  profile       Profile?
+  paymentMethod PaymentMethod?
+  bookings      Booking[]
+  Review        Review[]
+
+  @@map("student")
+}
+
+model Profile {
+  id                   String                 @id @default(uuid())
+  bio                  String?                @db.VarChar(500)
+  interestedCategories CategoriesInProfiles[]
+  experienceSkillSets  SkillSet[]             @relation("ExperienceSkills")
+  desiredSkillSets     SkillSet[]             @relation("DesiredSkills")
+
+  tutorId   String?  @unique @map("tutor_id")
+  tutor     Tutor?   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  studentId String?  @unique @map("student_id")
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("profile")
+}
+
+model WeeklyAvailability {
+  id        String   @id @default(uuid())
+  dayOfWeek String   @map("day_of_week")
+  startTime DateTime @map("start_time")
+  endTime   DateTime @map("end_time")
+
+  tutorId String @map("tutor_id")
+  tutor   Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  @@map("weekly_availability")
+}
+
+model PaymentMethod {
+  id        String            @id @default(uuid())
+  method    PaymentMethodType @default(CREDIT_CARD)
+  studentId String            @unique @map("student_id")
+  student   Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  paymentDetails PaymentDetails?
+
+  @@map("payment_method")
+}
+
+enum PaymentMethodType {
+  CREDIT_CARD
+  PAYPAL
+}
+
+model BankDetails {
+  id            String @id @default(uuid())
+  bsb           String
+  accountNumber String @map("account_number")
+
+  addressId String  @map("address_id")
+  address   Address @relation(fields: [addressId], references: [id])
+  tutorId   String  @unique @map("tutor_id")
+  tutor     Tutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  @@map("bank_details")
+}
+
+model PaymentDetails {
+  id         String @id @default(uuid())
+  cardName   String @map("card_name")
+  cardNumber String @map("card_number")
+  expiryDate String @map("expiry_date")
+  cvv        String
+
+  addressId       String        @map("address_id")
+  address         Address       @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  paymentMethodId String        @unique @map("payment_method_id")
+  paymentMethod   PaymentMethod @relation(fields: [paymentMethodId], references: [id], onDelete: Cascade)
+
+  @@map("payment_details")
+}
+
+model Address {
+  id           String  @id @default(uuid())
+  fullAddress  String? @map("full_address")
+  streetNumber String? @map("street_number")
+  streetName   String? @map("street_name")
+  suburb       String?
+  state        String?
+  city         String?
+  country      String
+  postcode     String? @db.VarChar(10)
+  lng          Float?
+  lat          Float?
+
+  BankDetails    BankDetails[]
+  PaymentDetails PaymentDetails[]
+
+  @@map("address")
+}
+
+model Lesson {
+  id            String             @id @default(uuid())
+  title         String
+  description   String
+  startTime     String             @map("start_time")
+  type          LessonType
+  price         Float
+  capacity      Int
+  duration      Int
+  topicSkillSet LessonsSkillSets[]
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  tutorId String @unique @map("tutor_id")
+  Tutor   Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  bookings Booking[]
+  Review   Review[]
+
+  @@map("lesson")
+}
+
+enum LessonType {
+  CLASS
+  ONE_ON_ONE
+}
+
+model Booking {
+  id        String  @id @default(uuid())
+  studentId String  @unique @map("student_id")
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lessonId  String  @unique @map("lesson_id")
+  lesson    Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@map("booking")
+}
+
+model Review {
+  id        String  @id @default(uuid())
+  rating    Int
+  studentId String  @unique @map("student_id")
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tutorId   String  @unique @map("tutor_id")
+  tutor     Tutor   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  lessonId  String  @unique @map("lesson_id")
+  lesson    Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@map("review")
+}
+
+model Category {
+  id                   String                 @id @default(uuid())
+  name                 String
+  categoriesInProfiles CategoriesInProfiles[]
+
+  @@map("category")
+}
+
+model SkillSet {
+  id                String  @id @default(uuid())
+  title             String  @unique
+  experiencedPeriod String? @map("experience_period")
+
+  experienceSkillSets Profile[]          @relation("ExperienceSkills")
+  desiredSkillSets    Profile[]          @relation("DesiredSkills")
+  lessonsSkillSets    LessonsSkillSets[]
+
+  @@map("skil_set")
+}
+
+model LessonsSkillSets {
+  lessonId   String   @map("lesson_id")
+  lesson     Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  skillSetId String   @map("skill_set_id")
+  skillSet   SkillSet @relation(fields: [skillSetId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, skillSetId])
+  @@map("lessons_skill_sets")
+}
+
+model CategoriesInProfiles {
+  profileId  String   @map("profile_id")
+  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  categoryId String   @map("category_id")
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, categoryId])
+  @@map("categories_in_profiles")
+}
+
+model Blog {
+  id        String   @id @default(uuid())
+  authorId  String   @unique @map("author_id")
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   @db.VarChar(500)
+  published Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  comments  Comment[]
+  blogLikes BlogLike[]
+  blogTags  TagsOnBlogs[]
+
+  @@map("blog")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  parentCommentId String? @map("parent_comment_id")
+  userId          String  @map("user_id")
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blogId          String  @map("blog_id")
+  blog            Blog    @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  parentComment Comment?  @relation("BlogComment", fields: [parentCommentId], references: [id])
+  childComments Comment[] @relation("BlogComment")
+
+  @@map("comment")
+}
+
+model BlogLike {
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blogId String @map("blog_id")
+  blog   Blog   @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, blogId])
+  @@map("blog_like")
+}
+
+model Tag {
+  id          String        @id @default(uuid())
+  title       String        @unique @db.VarChar(50)
+  tagsOnBlogs TagsOnBlogs[]
+
+  @@map("tag")
+}
+
+model TagsOnBlogs {
+  id String @id @default(uuid())
+
+  blogId String @map("blog_id")
+  blog   Blog   @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  tagId  String @map("tag_id")
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@map("tags_on_blogs")
+}
