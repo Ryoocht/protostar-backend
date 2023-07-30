@@ -14,7 +14,7 @@ export class ApiConfigService {
   }
 
   get applicationPort(): number {
-    return Number(this.configService.get('APPLICATION_PORT'))
+    return Number(this.configService.get('APPLICATION_PORT'));
   }
 
   get expireAt2fa(): number {
